@@ -6,25 +6,17 @@
 #include <condition_variable>
 #include <functional>
 
-class Task;
-std::unique_ptr<Task> createTask(std::function<void()> func);
-
-template<typename Rep, typename Period>
-std::unique_ptr<Task> createTask(std::chrono::duration<Rep, Period> delay, std::function<void()> func)
-{
-    return std::make_unique<Task>(delay, std::move(func));
-}
+using TaskFunction = std::function<void()>;
 
 class Task
 {
 public:
-    explicit Task(std::function<void()> func)
+    explicit Task(TaskFunction&& func)
         : func{std::move(func)}
     {}
 
-    template<typename Rep, typename Period>
-    Task(std::chrono::duration<Rep, Period> delay, std::function<void()> func)
-        : expiration(std::chrono::system_clock::now() + delay)
+    Task(std::chrono::nanoseconds delay, TaskFunction func)
+        : expiration(std::chrono::steady_clock::now() + delay)
         , func{std::move(func)}
     {}
 
@@ -33,7 +25,6 @@ public:
     {
         func();
     }
-
 
     bool hasExpired() const
     {
@@ -45,15 +36,28 @@ public:
     }
 private:
     std::chrono::steady_clock::time_point expiration{};
-    std::function<void()> func;
+    TaskFunction func;
 };
+
+template<typename ClassType = Task>
+std::unique_ptr<ClassType> createTask(std::chrono::nanoseconds delay, TaskFunction&& func)
+{
+    return std::make_unique<ClassType>(delay, std::move(func));
+}
+
+template<typename ClassType = Task>
+std::unique_ptr<ClassType> createTask(TaskFunction&& func)
+{
+    return std::make_unique<ClassType>(std::move(func));
+}
 
 class Dispatcher : public ThreadRunner<Dispatcher>
 {
 public:
-    void threadMain();
+    Dispatcher();
     ~Dispatcher();
 
+    void threadMain();
     void addTask(std::unique_ptr<Task> task);
     void shutdown();
 

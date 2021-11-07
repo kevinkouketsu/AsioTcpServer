@@ -5,6 +5,7 @@ include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
 
 set(EXTRA_LIBRARIES_PER_PLATFORM "")
 if (MSVC)
@@ -16,6 +17,7 @@ endif()
 add_executable(
     cpp_socket_server
     src/Dispatcher.cpp
+    src/Scheduler.cpp
     src/Server.cpp
 )
 

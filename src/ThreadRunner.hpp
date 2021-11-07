@@ -12,11 +12,20 @@ enum class ThreadRunnerState
 
 // This class uses static polymorphism (CRTP)
 template<typename Derived>
-class ThreadRunner {
+class ThreadRunner
+{
 public:
     ThreadRunner() = default;
     virtual ~ThreadRunner() = default;
 
+    void join()
+    {
+        if (thread.joinable())
+        {
+            thread.join();
+        }
+    }
+protected:
     void start()
     {
         setState(ThreadRunnerState::THREAD_STATE_RUNNING);
@@ -28,14 +37,6 @@ public:
         setState(ThreadRunnerState::THREAD_STATE_CLOSING);
     }
 
-    void join()
-    {
-        if (thread.joinable())
-        {
-            thread.join();
-        }
-    }
-protected:
     ThreadRunnerState getState() const
     {
         return currentState;

@@ -1,8 +1,8 @@
 #include "Dispatcher.hpp"
 
-std::unique_ptr<Task> createTask(std::function<void()> func)
+Dispatcher::Dispatcher()
 {
-    return std::make_unique<Task>(std::move(func));
+	start();
 }
 
 Dispatcher::~Dispatcher()
@@ -43,7 +43,8 @@ void Dispatcher::addTask(std::unique_ptr<Task> task)
     {
         std::lock_guard<std::mutex> lock{ taskLock };
 
-        if (getState() == ThreadRunnerState::THREAD_STATE_RUNNING) {
+        if (getState() == ThreadRunnerState::THREAD_STATE_RUNNING)
+        {
             doSignal = taskList.empty();
             taskList.push_back(std::move(task));
         }
