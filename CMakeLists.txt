@@ -6,9 +6,17 @@ conan_basic_setup()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(EXTRA_LIBRARIES_PER_PLATFORM "")
+if (MSVC)
+    add_definitions(-D_WIN32_WINNT=0x0501)
+elseif (UNIX)
+    set(EXTRA_LIBRARIES_PER_PLATFORM ${EXTRA_LIBRARIES_PER_PLATFORM} -lpthread)
+endif()
+
 add_executable(
     cpp_socket_server
+    src/Dispatcher.cpp
     src/Server.cpp
 )
 
-target_link_libraries(cpp_socket_server ${CONAN_LIBS})
+target_link_libraries(cpp_socket_server ${CONAN_LIBS} ${EXTRA_LIBRARIES_PER_PLATFORM})
