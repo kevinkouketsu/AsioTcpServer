@@ -3,9 +3,26 @@
 #include <boost/asio.hpp>
 #include "Dispatcher.hpp"
 #include "Scheduler.hpp"
+#include "Service.hpp"
+#include "Protocol.hpp"
 
 int main(int argc, char* argv[])
 {
+    class ProtocolTest : public Protocol
+    {
+    public:
+        ProtocolTest(std::shared_ptr<Session> session)
+        {
+        }
+        void onAccept() override
+        {
+            std::cout << "onAccept=" << this << std::endl;
+        }
+        void onClose() override
+        {
+            std::cout << "onClose=" << this << std::endl;
+        }
+    };
     try
     {
         auto dispatcher = std::make_shared<Dispatcher>();
@@ -19,12 +36,9 @@ int main(int argc, char* argv[])
         {
             std::cout << "Calling the scheduled task..." << std::endl;
         }));
-        scheduler->stopEvent(eventId);
-        scheduler->addEvent(createTask<SchedulerTask>(std::chrono::seconds(5), [dispatcher]()
-        {
-            std::cout << "Calling the scheduled task..." << std::endl;
-            dispatcher->shutdown();
-        }));
+        auto services = std::make_shared<Services>(dispatcher);
+        services->add<ProtocolTest>(8174, "");
+        services->run();
 
         dispatcher->join();
         scheduler->shutdown();

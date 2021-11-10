@@ -19,6 +19,8 @@ add_executable(
     src/Dispatcher.cpp
     src/Scheduler.cpp
     src/Server.cpp
+    src/Service.cpp
+    src/Session.cpp
 )
 
 target_link_libraries(cpp_socket_server ${CONAN_LIBS} ${EXTRA_LIBRARIES_PER_PLATFORM})
