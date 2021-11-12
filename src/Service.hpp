@@ -12,15 +12,15 @@ class Dispatcher;
 class TcpService;
 class ProtocolBase;
 
-class ServiceBase
+class ProtocolFactoryBase
 {
 public:
-    virtual ~ServiceBase() = default;
+    virtual ~ProtocolFactoryBase() = default;
     virtual std::shared_ptr<Protocol> createProtocol(std::shared_ptr<Session> session) = 0;
 };
 
 template<typename ProtocolType, typename = typename std::enable_if<std::is_base_of<Protocol, ProtocolType>::value>::type>
-class Service : public ServiceBase
+class ProtocolFactory : public ProtocolFactoryBase
 {
 public:
     std::shared_ptr<Protocol> createProtocol(std::shared_ptr<Session> session) override
@@ -38,7 +38,7 @@ public:
     void add(int16_t port, std::string ipAddress)
     {
         auto service = std::make_shared<TcpService>(dispatcher, ioService, std::make_shared<Service<ServiceType>>());
-        service->listen(ipAddress, port);
+        service->open(ipAddress, port);
         services[port] = std::move(service);
     }
 
@@ -56,8 +56,8 @@ private:
 class TcpService : public std::enable_shared_from_this<TcpService>
 {
 public:
-    TcpService(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, std::shared_ptr<ServiceBase> service);
-    void listen(std::string ipAddress, int16_t port);
+    TcpService(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service);
+    void open(std::string ipAddress, int16_t port);
 
 private:
     void accept();
@@ -65,6 +65,6 @@ private:
 
     boost::asio::io_service& ioService;
     std::unique_ptr<boost::asio::ip::tcp::acceptor> acceptor;
-    std::shared_ptr<ServiceBase> service;
+    std::shared_ptr<ProtocolFactoryBase> service;
     std::shared_ptr<Dispatcher> dispatcher;
 };

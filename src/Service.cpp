@@ -7,14 +7,14 @@ Services::Services(std::shared_ptr<Dispatcher> dispatcher)
 {
 }
 
-TcpService::TcpService(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, std::shared_ptr<ServiceBase> service)
+TcpService::TcpService(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service)
     : ioService{ioService}
     , dispatcher{std::move(dispatcher)}
     , service{std::move(service)}
 {
 }
 
-void TcpService::listen(std::string ipAddress, int16_t port)
+void TcpService::open(std::string ipAddress, int16_t port)
 {
     if (!ipAddress.empty())
     {
