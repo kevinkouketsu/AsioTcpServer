@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 
 static constexpr int32_t NETWORKMESSAGE_MAXSIZE = 24590;
+
 
 class NetworkMessage
 {
@@ -22,10 +24,11 @@ class NetworkMessage
 			info = {};
 		}
 		template<typename T>
-		T get() {
+		typename std::enable_if<!(std::is_same<T, std::string>::value), T>::type get()
+		{
 			if (!canRead(sizeof(T)))
 			{
-				return static_cast<T>(0);
+				return static_cast<T>(4);
 			}
 
 			T v;
@@ -33,18 +36,8 @@ class NetworkMessage
 			info.position += sizeof(T);
 			return v;
 		}
-
-		MsgSize_t getLength() const
-		{
-			return info.length;
-		}
-
-		void setLength(MsgSize_t newLength)
-		{
-			info.length = newLength;
-		}
-		template<>
-		std::string get()
+		template<typename T>
+		typename std::enable_if<std::is_same<T, std::string>::value, T>::type get()
 		{
 			auto size = get<unsigned int>();
 			if (!canRead(size))
@@ -61,7 +54,15 @@ class NetworkMessage
 			info.position += size;
 			return std::move(val);
 		}
+		MsgSize_t getLength() const
+		{
+			return info.length;
+		}
 
+		void setLength(MsgSize_t newLength)
+		{
+			info.length = newLength;
+		}
 		NetworkMessage& operator+=(unsigned int value)
 		{
 			info.position += value;
