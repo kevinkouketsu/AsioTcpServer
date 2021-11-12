@@ -2,6 +2,8 @@
 #include <iostream>
 #include "Protocol.hpp"
 
+using namespace std::chrono_literals;
+
 Session::Session(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService)
     : ioService{ioService}
     , socket{ioService}
@@ -32,24 +34,42 @@ uint32_t Session::getIpAddress() const
 
 void Session::handleTimeout(const boost::system::error_code& error)
 {
+    if (error == boost::asio::error::operation_aborted) {
+        return;
+    }
     close(true);
+}
+
+void Session::setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chrono::seconds timeout)
+{
+    steadyTimer.expires_from_now(timeout);
+    steadyTimer.async_wait(std::bind(&Session::handleTimeout, shared_from_this(), std::placeholders::_1));
 }
 
 void Session::read()
 {
     std::lock_guard<std::recursive_mutex> lockGuard { mutex };
-    try
-    {
-		readTimer.expires_from_now(std::chrono::seconds(15));
-		readTimer.async_wait(std::bind(&Session::handleTimeout, shared_from_this(), std::placeholders::_1));
 
-		boost::asio::async_read(
+    setTimerTimeout(readTimer, 15s);
+    if (sessionIsReady)
+    {
+        try
+        {
+            boost::asio::async_read(
+                socket,
+                boost::asio::buffer(msg.getBuffer(), NetworkMessage::SIZE_LENGTH),
+                std::bind(&Session::parseHeader, shared_from_this(), std::placeholders::_1));
+        }
+        catch (const boost::system::system_error& e)
+        {}
+    }
+    else
+    {
+        boost::asio::async_read(
             socket,
             boost::asio::buffer(msg.getBuffer(), 4),
-            std::bind(&Session::parseHeader, shared_from_this(), std::placeholders::_1));
+            std::bind(&Session::parseHelloPacket, shared_from_this(), std::placeholders::_1));
     }
-    catch (const boost::system::system_error& e)
-    {}
 }
 
 void Session::closeSocket()
@@ -73,19 +93,37 @@ void Session::close(bool forceClose)
         closeSocket();
 }
 
-void Session::parseHeader(const boost::system::error_code& error)
+
+void Session::parseHelloPacket(const boost::system::error_code& error)
 {
     if (error)
     {
+        close(ForceClose);
+        return;
+    }
+
+    msg.setBufferPosition(0);
+    if (msg.get<uint32_t>() == 0x1F11F311)
+    {
+        sessionIsReady = true;
+        read();
+    }
+}
+
+void Session::parseHeader(const boost::system::error_code& error)
+{
+    readTimer.cancel();
+
+    if (error)
+    {
+        std::cout << error.message() << std::endl;
         // an error occured
         close(ForceClose);
         return;
     }
 
-	auto size = msg.get<int>();
-    std::cout << "Packet of " << size << " arrived " << std::endl;
-
-    msg.setLength(size + NetworkMessage::HEADER_LENGTH);
+	auto size = msg.getLengthHeader() - NetworkMessage::SIZE_LENGTH;
+    msg.setLength(size + NetworkMessage::SIZE_LENGTH);
     boost::asio::async_read(
         socket, boost::asio::buffer(msg.getBodyBuffer(), size),
         std::bind(&Session::parsePacket, shared_from_this(), std::placeholders::_1));
@@ -93,21 +131,21 @@ void Session::parseHeader(const boost::system::error_code& error)
 
 void Session::parsePacket(const boost::system::error_code& error)
 {
+    readTimer.cancel();
     if (error)
     {
-        // an error occured
+        std::cout << error.message() << std::endl;
         close(ForceClose);
         return;
     }
 
-    readTimer.cancel();
+    addTask(&Protocol::onRecvMessage, msg);
+    read();
 }
-
 
 void Session::accept(std::shared_ptr<Protocol> protocol)
 {
     this->protocol = std::move(protocol);
 
     addTask(&Protocol::onAccept);
-    addTask(Protocol::onAccept);
 }

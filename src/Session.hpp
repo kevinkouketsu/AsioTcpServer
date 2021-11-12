@@ -7,15 +7,6 @@
 class Dispatcher;
 class Protocol;
 
-class SessionHandler
-{
-public:
-    virtual ~SessionHandler() = default;
-    virtual void onRecvMessage(NetworkMessage&);
-    virtual void onDisconnect() = 0;
-    virtual void onTimeout() = 0;
-};
-
 class Session : public std::enable_shared_from_this<Session>
 {
 public:
@@ -36,6 +27,8 @@ private:
     void parsePacket(const boost::system::error_code& error);
     void closeSocket();
     void handleTimeout(const boost::system::error_code& error);
+    void setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chrono::seconds timeout);
+    void parseHelloPacket(const boost::system::error_code& error);
 
     template<typename T, typename... Args>
     void addTask(T method, Args... args)
@@ -54,4 +47,6 @@ private:
     std::chrono::steady_clock::time_point sessionStartTime;
     std::shared_ptr<Dispatcher> dispatcher;
     std::shared_ptr<Protocol> protocol;
+
+    bool sessionIsReady { false };
 };
