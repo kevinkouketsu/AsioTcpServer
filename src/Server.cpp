@@ -6,7 +6,7 @@
 #include "Service.hpp"
 #include "Protocol.hpp"
 #include "NetworkMessage.hpp"
-
+#include "Client.hpp"
 
 static uint8_t KeyTable[] =
 {
@@ -112,6 +112,29 @@ int main(int argc, char* argv[])
             std::cout << "PacketId " << std::hex << msg.get<uint16_t>() << std::endl;
         }
     };
+
+    class ProtocolClient : public Protocol
+    {
+    public:
+        ProtocolClient(std::shared_ptr<Session> session)
+        {
+        }
+        void onAccept() override
+        {
+            std::cout << "onConnected into the client=" << this << std::endl;
+        }
+        void onClose() override
+        {
+            std::cout << "Client closed=" << this << std::endl;
+        }
+        void onRecvMessage(NetworkMessage& msg) override
+        {
+            decryptMessage(msg.getBuffer(), msg.getLengthHeader());
+            msg += 2;
+
+            std::cout << "PacketId " << std::hex << msg.get<uint16_t>() << std::endl;
+        }
+    };
     try
     {
         auto dispatcher = std::make_shared<Dispatcher>();
@@ -127,8 +150,11 @@ int main(int argc, char* argv[])
         }));
         auto services = std::make_shared<Services>(dispatcher);
         services->add<ProtocolTest>(8174, "");
-        services->run();
 
+        auto client = std::make_shared<ClientService>(dispatcher, services->getIoService(), std::make_shared<ProtocolFactory<ProtocolClient>>());
+        client->open(std::string{"127.0.0.1"}, 8174);
+
+        services->run();
         dispatcher->join();
         scheduler->shutdown();
         scheduler->join();

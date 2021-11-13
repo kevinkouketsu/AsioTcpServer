@@ -36,6 +36,7 @@ private:
         dispatcher->addTask(createTask(std::bind(method, this->protocol, std::forward<Args>(args)...)));
     }
 private:
+
     mutable std::recursive_mutex mutex;
 
     // todo:  refactor
