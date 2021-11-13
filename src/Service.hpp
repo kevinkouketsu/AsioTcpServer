@@ -1,7 +1,9 @@
 #pragma once
 
 #include "Protocol.hpp"
+#include "ServiceBase.hpp"
 #include "ThreadRunner.hpp"
+#include "ProtocolFactory.hpp"
 #include <boost/asio.hpp>
 #include <string>
 #include <type_traits>
@@ -10,24 +12,6 @@
 class Session;
 class Dispatcher;
 class TcpService;
-class ProtocolBase;
-
-class ProtocolFactoryBase
-{
-public:
-    virtual ~ProtocolFactoryBase() = default;
-    virtual std::shared_ptr<Protocol> createProtocol(std::shared_ptr<Session> session) = 0;
-};
-
-template<typename ProtocolType, typename = typename std::enable_if<std::is_base_of<Protocol, ProtocolType>::value>::type>
-class ProtocolFactory : public ProtocolFactoryBase
-{
-public:
-    std::shared_ptr<Protocol> createProtocol(std::shared_ptr<Session> session) override
-    {
-        return std::make_shared<ProtocolType>(session);
-    }
-};
 
 class Services : public std::enable_shared_from_this<Services>
 {
@@ -37,7 +21,7 @@ public:
     template<typename ServiceType>
     void add(int16_t port, std::string ipAddress)
     {
-        auto service = std::make_shared<TcpService>(dispatcher, ioService, std::make_shared<Service<ServiceType>>());
+        auto service = std::make_shared<TcpService>(dispatcher, ioService, std::make_shared<ProtocolFactory<ServiceType>>());
         service->open(ipAddress, port);
         services[port] = std::move(service);
     }
@@ -47,13 +31,17 @@ public:
         ioService.run();
     }
 
+    boost::asio::io_service& getIoService()
+    {
+        return ioService;
+    }
 private:
     std::shared_ptr<Dispatcher> dispatcher;
     boost::asio::io_service ioService;
     std::unordered_map<int16_t, std::shared_ptr<TcpService>> services;
 };
 
-class TcpService : public std::enable_shared_from_this<TcpService>
+class TcpService : public std::enable_shared_from_this<TcpService>, public ServiceBase<TcpService>
 {
 public:
     TcpService(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service);

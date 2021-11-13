@@ -6,8 +6,9 @@
 #include "Service.hpp"
 #include "Protocol.hpp"
 #include "NetworkMessage.hpp"
-
-
+#include "Client.hpp"
+#include "BufferWriter.hpp"
+#include "Session.hpp"
 static uint8_t KeyTable[] =
 {
     0x14, 0x17, 0x47, 0x67, 0x7A, 0x09, 0x21, 0x0D, 0x5B, 0x5B, 0x15, 0x0D, 0x17, 0x11, 0x21, 0x0C, 0x1F, 0x03, 0x21,
@@ -87,6 +88,52 @@ bool decryptMessage(uint8_t* PacketBuffer, uint16_t size)
     return true;
 }
 
+void PacketEncrypt(BYTE* pBuffer, const BYTE* data, uint32_t packetSize)
+{
+	PacketHeader* pHeader = (PacketHeader*)pBuffer;
+	uint32_t checkSum[2] = { 0, 0 };
+
+	uint8_t hashKey = KeyTable[15];
+	pHeader->Size = (INT16)packetSize;
+	pHeader->KeyWord = hashKey;
+	pHeader->Tick = GetTickCount();
+
+	uint32_t keyIncrement = KeyTable[(hashKey & 255) * 2];
+
+	for (uint32_t i = 4; i < packetSize; i++, keyIncrement++)
+	{
+		uint32_t keyResult = KeyTable[(((keyIncrement & 255) & 0x800000FF) * 2) + 1];
+
+		switch (i & 3)
+		{
+		case 00:
+		{
+				   pBuffer[i] = data[i] + ((keyResult & 255) << 1);
+				   break;
+		}
+		case 01:
+		{
+				   pBuffer[i] = data[i] - ((keyResult & 255) >> 3);
+				   break;
+		}
+		case 02:
+		{
+				   pBuffer[i] = data[i] + ((keyResult & 255) << 2);
+				   break;
+		}
+		case 03:
+		{
+				   pBuffer[i] = data[i] - ((keyResult & 255) >> 5);
+				   break;
+		}
+		}
+
+		checkSum[0] += data[i];
+		checkSum[1] += pBuffer[i];
+	}
+
+	pHeader->CheckSum = ((checkSum[1] & 255) - (checkSum[0] & 255)) & 255;
+}
 
 int main(int argc, char* argv[])
 {
@@ -94,6 +141,7 @@ int main(int argc, char* argv[])
     {
     public:
         ProtocolTest(std::shared_ptr<Session> session)
+            : session{std::move(session)}
         {
         }
         void onAccept() override
@@ -110,6 +158,51 @@ int main(int argc, char* argv[])
             msg += 2;
 
             std::cout << "PacketId " << std::hex << msg.get<uint16_t>() << std::endl;
+
+            BufferWriter writer{ 140 };
+            writer.set<uint16_t>(140);
+            writer.set<uint16_t>(0);
+            writer.set<uint16_t>(0x101);
+            writer += 6;
+            writer.set<char>('A');
+            writer.set<char>('B');
+            writer.set<char>('C');
+            writer.set<char>('\0');
+            session->send(std::make_shared<BufferWriter>(writer));
+        }
+        void onSendMessage(const std::shared_ptr<BufferWriter>& message)
+        {
+            auto oldData = message->getBuffer();
+            PacketEncrypt(message->getBuffer().data(), oldData.data(), message->getSize());
+            std::cout << "trying to send a new message" << std::endl;
+        }
+
+        std::shared_ptr<Session> session;
+    };
+
+    class ProtocolClient : public Protocol
+    {
+    public:
+        ProtocolClient(std::shared_ptr<Session> session)
+        {
+        }
+        void onAccept() override
+        {
+            std::cout << "onConnected into the client=" << this << std::endl;
+        }
+        void onClose() override
+        {
+            std::cout << "Client closed=" << this << std::endl;
+        }
+        void onRecvMessage(NetworkMessage& msg) override
+        {
+            decryptMessage(msg.getBuffer(), msg.getLengthHeader());
+            msg += 2;
+
+            std::cout << "PacketId " << std::hex << msg.get<uint16_t>() << std::endl;
+        }
+        void onSendMessage(const std::shared_ptr<BufferWriter>& message)
+        {
         }
     };
     try
@@ -127,8 +220,11 @@ int main(int argc, char* argv[])
         }));
         auto services = std::make_shared<Services>(dispatcher);
         services->add<ProtocolTest>(8174, "");
-        services->run();
 
+        auto client = std::make_shared<ClientService>(dispatcher, services->getIoService(), std::make_shared<ProtocolFactory<ProtocolClient>>());
+        client->open(std::string{"127.0.0.1"}, 8174);
+
+        services->run();
         dispatcher->join();
         scheduler->shutdown();
         scheduler->join();
