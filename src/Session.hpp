@@ -1,11 +1,13 @@
 #pragma once
 
-#include <boost/asio.hpp>
-#include "NetworkMessage.hpp"
 #include "Dispatcher.hpp"
+#include "NetworkMessage.hpp"
+#include <boost/asio.hpp>
+#include <list>
 
 class Dispatcher;
 class Protocol;
+class BufferWriter;
 
 class Session : public std::enable_shared_from_this<Session>
 {
@@ -20,6 +22,8 @@ public:
 
     void accept(std::shared_ptr<Protocol> protocol);
     void read();
+    void send(const std::shared_ptr<BufferWriter>& message);
+
     void close(bool force = false);
 
 private:
@@ -29,6 +33,8 @@ private:
     void handleTimeout(const boost::system::error_code& error);
     void setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chrono::seconds timeout);
     void parseHelloPacket(const boost::system::error_code& error);
+    void internalSend(const std::shared_ptr<BufferWriter>& message);
+    void onWriteOperation(const boost::system::error_code& error);
 
     template<typename T, typename... Args>
     void addTask(T method, Args... args)
@@ -42,6 +48,8 @@ private:
     // todo:  refactor
     NetworkMessage msg;
 
+    bool closed { false };
+
     boost::asio::ip::tcp::socket socket;
 	boost::asio::steady_timer readTimer;
     boost::asio::io_service& ioService;
@@ -49,5 +57,6 @@ private:
     std::shared_ptr<Dispatcher> dispatcher;
     std::shared_ptr<Protocol> protocol;
 
+    std::list<std::shared_ptr<BufferWriter>> pendingMessagesQueue;
     bool sessionIsReady { false };
 };

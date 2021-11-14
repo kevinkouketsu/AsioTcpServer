@@ -16,6 +16,7 @@ endif()
 
 add_executable(
     cpp_socket_server
+    src/Client.cpp
     src/Dispatcher.cpp
     src/Scheduler.cpp
     src/Server.cpp

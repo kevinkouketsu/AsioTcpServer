@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <string>
+#include <cstring>
 #include <type_traits>
+#include <sstream>
 
 static constexpr int32_t NETWORKMESSAGE_MAXSIZE = 24590;
 
@@ -32,7 +34,7 @@ class NetworkMessage
 			}
 
 			T v;
-			memcpy(&v, buffer + info.position, sizeof(T));
+			std::memcpy(&v, buffer + info.position, sizeof(T));
 			info.position += sizeof(T);
 			return v;
 		}

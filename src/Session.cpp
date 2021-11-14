@@ -1,6 +1,7 @@
 #include "Session.hpp"
 #include <iostream>
 #include "Protocol.hpp"
+#include "BufferWriter.hpp"
 
 using namespace std::chrono_literals;
 
@@ -87,10 +88,14 @@ void Session::closeSocket()
 void Session::close(bool forceClose)
 {
     std::lock_guard<std::recursive_mutex> lockGuard { mutex };
+    if (closed)
+        return;
 
-    //  TODO: check message queue if something is missing
-    if (forceClose)
-        closeSocket();
+    closed = true;
+	if (pendingMessagesQueue.empty() || forceClose)
+    {
+		closeSocket();
+	}
 }
 
 
@@ -148,4 +153,65 @@ void Session::accept(std::shared_ptr<Protocol> protocol)
     this->protocol = std::move(protocol);
 
     addTask(&Protocol::onAccept);
+}
+
+void Session::send(const std::shared_ptr<BufferWriter>& message)
+{
+    bool isSleeping { false };
+    {
+        std::lock_guard<std::recursive_mutex> lockGuard { mutex };
+        isSleeping = pendingMessagesQueue.empty();
+        pendingMessagesQueue.push_back(message);
+    }
+
+    if (isSleeping)
+    {
+        internalSend(message);
+    }
+}
+
+void Session::internalSend(const std::shared_ptr<BufferWriter>& message)
+{
+	protocol->onSendMessage(message);
+	try {
+		boost::asio::async_write(
+            socket,
+            boost::asio::buffer(
+                message->getBuffer(),
+                message->getSize()
+            ),
+            std::bind(
+                &Session::onWriteOperation,
+                shared_from_this(),
+                std::placeholders::_1
+            )
+        );
+	}
+    catch (boost::system::system_error& e)
+    {
+		std::cout << "[Network error - Connection::internalSend] " << e.what() << std::endl;
+		close(ForceClose);
+	}
+}
+
+void Session::onWriteOperation(const boost::system::error_code& error)
+{
+	std::lock_guard<std::recursive_mutex> lockGuard { mutex };
+	pendingMessagesQueue.pop_front();
+
+	if (error) {
+		pendingMessagesQueue.clear();
+        std::cout << "Fail to send a message " << error.message() << std::endl;
+		close(ForceClose);
+		return;
+	}
+
+	if (!pendingMessagesQueue.empty())
+    {
+		internalSend(pendingMessagesQueue.front());
+	}
+    else if (closed)
+    {
+		closeSocket();
+	}
 }
