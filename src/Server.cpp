@@ -165,10 +165,8 @@ int main(int argc, char* argv[])
             writer.set<uint16_t>(0);
             writer.set<uint16_t>(0x101);
             writer += 6;
-            writer.set<char>('A');
-            writer.set<char>('B');
-            writer.set<char>('C');
-            writer.set<char>('\0');
+
+            writer << 'A' << 'B' << 'C' << '\0';
             session->send(std::make_shared<BufferWriter>(writer));
         }
         void onSendMessage(const std::shared_ptr<BufferWriter>& message)

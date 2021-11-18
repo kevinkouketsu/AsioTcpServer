@@ -27,6 +27,14 @@ public:
 	}
 
 	template<typename T>
+	BufferWriter& operator<<(const T& lhs)
+	{
+		this->set<T>(lhs);
+
+		return *this;
+	}
+
+	template<typename T>
 	void set(T value, int position = -1)
 	{
 		bool moveIndex{ false };

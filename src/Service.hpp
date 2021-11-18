@@ -31,6 +31,11 @@ public:
         ioService.run();
     }
 
+    bool isRunning()
+    {
+        return services.empty() == false;
+    }
+
     boost::asio::io_service& getIoService()
     {
         return ioService;

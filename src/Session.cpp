@@ -75,6 +75,7 @@ void Session::read()
 
 void Session::closeSocket()
 {
+
     std::cout << "Closing socket" << std::endl;
     if (socket.is_open())
     {

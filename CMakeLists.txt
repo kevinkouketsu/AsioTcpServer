@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(cpp_socket_server VERSION 0.1.0)
+project(emulator_network VERSION 0.1.0)
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
@@ -14,14 +14,15 @@ elseif (UNIX)
     set(EXTRA_LIBRARIES_PER_PLATFORM ${EXTRA_LIBRARIES_PER_PLATFORM} -lpthread)
 endif()
 
-add_executable(
-    cpp_socket_server
+add_library(
+    emulator_network
     src/Client.cpp
     src/Dispatcher.cpp
     src/Scheduler.cpp
     src/Server.cpp
     src/Service.cpp
     src/Session.cpp
+    src/Utils.cpp
 )
 
-target_link_libraries(cpp_socket_server ${CONAN_LIBS} ${EXTRA_LIBRARIES_PER_PLATFORM})
+target_link_libraries(emulator_network ${CONAN_LIBS} ${EXTRA_LIBRARIES_PER_PLATFORM})
