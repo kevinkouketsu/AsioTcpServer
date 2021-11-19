@@ -141,7 +141,7 @@ int main(int argc, char* argv[])
     class ProtocolTest : public Protocol
     {
     public:
-        ProtocolTest(std::shared_ptr<Session> session)
+        ProtocolTest(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<Session> session)
             : session{std::move(session)}
         {
         }
@@ -182,7 +182,7 @@ int main(int argc, char* argv[])
     class ProtocolClient : public Protocol
     {
     public:
-        ProtocolClient(std::shared_ptr<Session> session)
+        ProtocolClient(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<Session> session)
         {
         }
         void onAccept() override
@@ -217,10 +217,10 @@ int main(int argc, char* argv[])
         {
             std::cout << "Calling the scheduled task..." << std::endl;
         }));
-        auto services = std::make_shared<Services>(dispatcher);
+        auto services = std::make_shared<Services>(dispatcher, scheduler);
         services->add<ProtocolTest>(8174, "");
 
-        auto client = std::make_shared<ClientService>(dispatcher, services->getIoService(), std::make_shared<ProtocolFactory<ProtocolClient>>());
+        auto client = std::make_shared<ClientService>(dispatcher, scheduler, services->getIoService(), std::make_shared<ProtocolFactory<ProtocolClient>>());
         std::string ipAddress = std::string{"127.0.0.1"};
         client->open(ipAddress, 8174);
 

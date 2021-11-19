@@ -2,14 +2,15 @@
 #include "Session.hpp"
 #include <iostream>
 
-Services::Services(std::shared_ptr<Dispatcher> dispatcher)
+Services::Services(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler)
     : dispatcher{std::move(dispatcher)}
 {
 }
 
-TcpService::TcpService(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service)
+TcpService::TcpService(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service)
     : ioService{ioService}
     , dispatcher{std::move(dispatcher)}
+    , scheduler{std::move(scheduler)}
     , service{std::move(service)}
 {
 }
@@ -56,7 +57,7 @@ void TcpService::onAccept(std::shared_ptr<Session> session, const boost::system:
     std::cout << "Accepted a new connection" << std::endl;
     if (!error)
     {
-        session->accept(this->service->createProtocol(session));
+        session->accept(this->service->createProtocol(dispatcher, scheduler, session));
         session->read();
 
         // recursively await a new connection

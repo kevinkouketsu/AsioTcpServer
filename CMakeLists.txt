@@ -22,7 +22,6 @@ add_library(
     src/Server.cpp
     src/Service.cpp
     src/Session.cpp
-    src/Utils.cpp
 )
 
 target_link_libraries(emulator_network ${CONAN_LIBS} ${EXTRA_LIBRARIES_PER_PLATFORM})

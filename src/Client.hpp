@@ -7,11 +7,12 @@
 class ProtocolFactoryBase;
 class Dispatcher;
 class Session;
+class Scheduler;
 
 class ClientService : public std::enable_shared_from_this<ClientService>, public ServiceBase<ClientService>
 {
 public:
-    ClientService(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service);
+    ClientService(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service);
     void run();
     void open(std::string& ipAddress, uint16_t port);
 
@@ -20,6 +21,7 @@ private:
 
 private:
     std::shared_ptr<Session> session;
+    std::shared_ptr<Scheduler> scheduler;
     std::shared_ptr<ProtocolFactoryBase> service;
     std::shared_ptr<Dispatcher> dispatcher;
     boost::asio::io_service& ioService;

@@ -4,8 +4,9 @@
 #include "Session.hpp"
 #include <iostream>
 
-ClientService::ClientService(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service)
+ClientService::ClientService(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service)
     : dispatcher{std::move(dispatcher)}
+    , scheduler{std::move(scheduler)}
     , ioService(ioService)
     , session{std::make_shared<Session>(dispatcher, ioService)}
     , service{std::move(service)}
@@ -35,6 +36,6 @@ void ClientService::onConnect(const boost::system::error_code& err)
     }
 
     std::cout << "Connected succesfully" << std::endl;
-    session->accept(service->createProtocol(session));
+    session->accept(service->createProtocol(dispatcher, scheduler, session));
     session->read();
 }
