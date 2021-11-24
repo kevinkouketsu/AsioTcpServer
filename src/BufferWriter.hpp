@@ -3,6 +3,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <limits>
 
 class BufferWriter
 {
@@ -10,7 +11,7 @@ class BufferWriter
 	std::vector<unsigned char> data;
 public:
     BufferWriter() = default;
-	BufferWriter(int size)
+	BufferWriter(size_t size)
 	{
 		data.resize(size);
 	}
@@ -35,7 +36,7 @@ public:
 	}
 
 	template<typename T>
-	void set(T value, int position = -1)
+	void set(T value, size_t position = std::numeric_limits<size_t>::max())
 	{
 		bool moveIndex{ false };
 		if (position == -1)
@@ -54,14 +55,14 @@ public:
 	}
 
 	template<typename T = std::string>
-	void set(const char* value, size_t size)
+	void set(const char* value, uint32_t size)
 	{
 		set<uint32_t>(size);
 
 		if (index + size > data.size())
 			data.resize(index + size);
 
-		std::memcpy((void*)&data[index], size, (void*)value);
+		std::memcpy((void*)&data[index], (void*)value, size);
 
 		index += size;
 	}

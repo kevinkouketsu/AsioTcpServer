@@ -30,7 +30,7 @@ class NetworkMessage
 		{
 			if (!canRead(sizeof(T)))
 			{
-				return static_cast<T>(4);
+				return T{};
 			}
 
 			T v;

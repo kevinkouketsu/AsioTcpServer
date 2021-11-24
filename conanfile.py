@@ -28,8 +28,6 @@ class EmulatorNetworkConan(ConanFile):
         self.options["boost"].without_math = True
         self.options["boost"].without_random = True
         self.options["boost"].without_stacktrace = True
-        self.options["boost"].magic_autolink = True
-        self.options["boost"].without_filesystem = False
 
     def build(self):
         cmake = CMake(self)

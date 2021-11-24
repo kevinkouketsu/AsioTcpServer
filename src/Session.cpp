@@ -61,8 +61,9 @@ void Session::read()
                 boost::asio::buffer(msg.getBuffer(), NetworkMessage::SIZE_LENGTH),
                 std::bind(&Session::parseHeader, shared_from_this(), std::placeholders::_1));
         }
-        catch (const boost::system::system_error& e)
+        catch (const boost::system::system_error&)
         {}
+        // todo: logo
     }
     else
     {
