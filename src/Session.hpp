@@ -25,13 +25,14 @@ public:
     void send(const std::shared_ptr<BufferWriter>& message);
 
     void close(bool force = false);
+    void setTimeout(std::chrono::microseconds timeoutInMicroseconds);
 
 private:
     void parseHeader(const boost::system::error_code& error);
     void parsePacket(const boost::system::error_code& error);
     void closeSocket();
     void handleTimeout(const boost::system::error_code& error);
-    void setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chrono::seconds timeout);
+    void setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chrono::microseconds timeout);
     void parseHelloPacket(const boost::system::error_code& error);
     void internalSend(const std::shared_ptr<BufferWriter>& message);
     void onWriteOperation(const boost::system::error_code& error);
@@ -56,6 +57,7 @@ private:
     std::chrono::steady_clock::time_point sessionStartTime;
     std::shared_ptr<Dispatcher> dispatcher;
     std::shared_ptr<Protocol> protocol;
+    std::chrono::microseconds timeoutInMicroseconds;
 
     std::list<std::shared_ptr<BufferWriter>> pendingMessagesQueue;
     bool sessionIsReady { false };

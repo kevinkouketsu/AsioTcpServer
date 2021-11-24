@@ -41,17 +41,20 @@ void Session::handleTimeout(const boost::system::error_code& error)
     close(true);
 }
 
-void Session::setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chrono::seconds timeout)
+void Session::setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chrono::microseconds timeout)
 {
-    steadyTimer.expires_from_now(timeout);
-    steadyTimer.async_wait(std::bind(&Session::handleTimeout, shared_from_this(), std::placeholders::_1));
+    if (timeout.count() != 0)
+    {
+        steadyTimer.expires_from_now(timeout);
+        steadyTimer.async_wait(std::bind(&Session::handleTimeout, shared_from_this(), std::placeholders::_1));
+    }
 }
 
 void Session::read()
 {
     std::lock_guard<std::recursive_mutex> lockGuard { mutex };
 
-    setTimerTimeout(readTimer, 15s);
+    setTimerTimeout(readTimer, timeoutInMicroseconds);
     if (sessionIsReady)
     {
         try
@@ -76,8 +79,6 @@ void Session::read()
 
 void Session::closeSocket()
 {
-
-    std::cout << "Closing socket" << std::endl;
     if (socket.is_open())
     {
         boost::system::error_code error;
@@ -119,12 +120,9 @@ void Session::parseHelloPacket(const boost::system::error_code& error)
 
 void Session::parseHeader(const boost::system::error_code& error)
 {
-    readTimer.cancel();
-
     if (error)
     {
         std::cout << error.message() << std::endl;
-        // an error occured
         close(ForceClose);
         return;
     }
@@ -216,4 +214,10 @@ void Session::onWriteOperation(const boost::system::error_code& error)
     {
 		closeSocket();
 	}
+}
+
+
+void Session::setTimeout(std::chrono::microseconds timeoutInMicroseconds)
+{
+    this->timeoutInMicroseconds = timeoutInMicroseconds;
 }

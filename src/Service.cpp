@@ -39,7 +39,6 @@ void TcpService::open(std::string ipAddress, int16_t port)
 
 void TcpService::accept()
 {
-    // TODO: manage the connection correctly
     auto connection = std::make_shared<Session>(dispatcher, ioService);
 	acceptor->async_accept(
         connection->getSocket(),
