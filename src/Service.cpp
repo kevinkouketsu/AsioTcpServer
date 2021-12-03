@@ -56,7 +56,9 @@ void TcpService::onAccept(std::shared_ptr<Session> session, const boost::system:
     std::cout << "Accepted a new connection" << std::endl;
     if (!error)
     {
-        session->accept(this->service->createProtocol(dispatcher, scheduler, session));
+        auto protocol = this->service->createProtocol(dispatcher, scheduler, session);
+        protocol->start();
+        session->accept(std::move(protocol));
         session->read();
 
         // recursively await a new connection

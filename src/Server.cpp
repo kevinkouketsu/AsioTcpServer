@@ -145,6 +145,10 @@ int main(int argc, char* argv[])
             : session{std::move(session)}
         {
         }
+        void start() override
+        {
+
+        }
         void onAccept() override
         {
             std::cout << "onAccept=" << this << std::endl;
@@ -184,6 +188,10 @@ int main(int argc, char* argv[])
     public:
         ProtocolClient(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<Session> session)
         {
+        }
+        void start() override
+        {
+
         }
         void onAccept() override
         {
