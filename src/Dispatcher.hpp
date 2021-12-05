@@ -64,6 +64,6 @@ public:
 private:
     std::mutex taskLock;
     std::condition_variable taskSignal;
-    size_t maximumTasks;
+    size_t maximumTasks { 0 };
     std::vector<std::unique_ptr<Task>> taskList;
 };
