@@ -62,9 +62,8 @@ public:
     void shutdown();
 
 private:
-
     std::mutex taskLock;
     std::condition_variable taskSignal;
-
+    size_t maximumTasks;
     std::vector<std::unique_ptr<Task>> taskList;
 };

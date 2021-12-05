@@ -1,7 +1,7 @@
 
 #include "Scheduler.hpp"
 #include <boost/asio/post.hpp>
-#include <memory>
+#include "ILogger.hpp"
 
 Scheduler::Scheduler(std::shared_ptr<Dispatcher> dispatcher)
     : dispatcher{std::move(dispatcher)}
@@ -42,9 +42,11 @@ void Scheduler::stopEvent(uint32_t eventId)
 {
 	if (eventId == 0)
     {
+        NETWORK_LOG_DEBUG("Asked to stop eventId 0, ignoring");
 		return;
 	}
 
+    NETWORK_LOG_DEBUG("Stopping eventId " << eventId);
 	boost::asio::post(io_context, [self=shared_from_this(), eventId]()
     {
 		auto it = self->eventIdTimerMap.find(eventId);
@@ -57,6 +59,7 @@ void Scheduler::stopEvent(uint32_t eventId)
 
 void Scheduler::shutdown()
 {
+    NETWORK_LOG_DEBUG("Shutting down the Scheduler");
 	setState(ThreadRunnerState::THREAD_STATE_TERMINATED);
 	boost::asio::post(io_context, [this]() {
 		for (auto& it : eventIdTimerMap)

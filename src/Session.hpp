@@ -60,5 +60,7 @@ private:
     std::chrono::microseconds timeoutInMicroseconds;
 
     std::list<std::shared_ptr<BufferWriter>> pendingMessagesQueue;
+
+    size_t maximumPendingMessages { 0 };
     bool sessionIsReady { false };
 };

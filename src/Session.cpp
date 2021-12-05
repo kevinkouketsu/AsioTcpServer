@@ -2,6 +2,7 @@
 #include <iostream>
 #include "Protocol.hpp"
 #include "BufferWriter.hpp"
+#include "ILogger.hpp"
 
 using namespace std::chrono_literals;
 
@@ -38,6 +39,7 @@ void Session::handleTimeout(const boost::system::error_code& error)
     if (error == boost::asio::error::operation_aborted) {
         return;
     }
+    NETWORK_LOG_INFO("Something just timed out. Closing the connection");
     close(true);
 }
 
@@ -64,9 +66,10 @@ void Session::read()
                 boost::asio::buffer(msg.getBuffer(), NetworkMessage::SIZE_LENGTH),
                 std::bind(&Session::parseHeader, shared_from_this(), std::placeholders::_1));
         }
-        catch (const boost::system::system_error&)
-        {}
-        // todo: logo
+        catch (const boost::system::system_error& error)
+        {
+            NETWORK_LOG_ERROR("Error " << error.code() << " while async_read. Message: " << error.what());
+        }
     }
     else
     {
@@ -106,6 +109,7 @@ void Session::parseHelloPacket(const boost::system::error_code& error)
 {
     if (error)
     {
+        NETWORK_LOG_ERROR("Error when parsing the hello packet. Error: " << error.message());
         close(ForceClose);
         return;
     }
@@ -122,7 +126,7 @@ void Session::parseHeader(const boost::system::error_code& error)
 {
     if (error)
     {
-        std::cout << error.message() << std::endl;
+        NETWORK_LOG_ERROR("Error while trying to parseHeader: " << error.message() << ". Forcing close the connection");
         close(ForceClose);
         return;
     }
@@ -139,7 +143,7 @@ void Session::parsePacket(const boost::system::error_code& error)
     readTimer.cancel();
     if (error)
     {
-        std::cout << error.message() << std::endl;
+        NETWORK_LOG_ERROR("Error while trying to parsePacket: " << error.message() << ". Forcing close the connection");
         close(ForceClose);
         return;
     }
@@ -162,6 +166,12 @@ void Session::send(const std::shared_ptr<BufferWriter>& message)
         std::lock_guard<std::recursive_mutex> lockGuard { mutex };
         isSleeping = pendingMessagesQueue.empty();
         pendingMessagesQueue.push_back(message);
+        auto oldMax = maximumPendingMessages;
+        maximumPendingMessages = std::max(maximumPendingMessages, pendingMessagesQueue.size());
+        if (oldMax != maximumPendingMessages)
+        {
+            NETWORK_LOG_DEBUG("Maximum pending messages exceeded: " << maximumPendingMessages);
+        }
     }
 
     if (isSleeping)
@@ -189,7 +199,7 @@ void Session::internalSend(const std::shared_ptr<BufferWriter>& message)
 	}
     catch (boost::system::system_error& e)
     {
-		std::cout << "[Network error - Connection::internalSend] " << e.what() << std::endl;
+		NETWORK_LOG_ERROR("Fail to send packet " << e.what() << ". Forced to close the connection");
 		close(ForceClose);
 	}
 }
@@ -199,9 +209,10 @@ void Session::onWriteOperation(const boost::system::error_code& error)
 	std::lock_guard<std::recursive_mutex> lockGuard { mutex };
 	pendingMessagesQueue.pop_front();
 
-	if (error) {
+	if (error)
+    {
 		pendingMessagesQueue.clear();
-        std::cout << "Fail to send a message " << error.message() << std::endl;
+        NETWORK_LOG_ERROR("Fail to send a message " << error.message());
 		close(ForceClose);
 		return;
 	}
@@ -213,6 +224,7 @@ void Session::onWriteOperation(const boost::system::error_code& error)
     else if (closed)
     {
 		closeSocket();
+        NETWORK_LOG_ERROR("Finished to send all queued messages. Closing the connection");
 	}
 }
 

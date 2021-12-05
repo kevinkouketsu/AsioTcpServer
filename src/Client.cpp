@@ -2,6 +2,7 @@
 #include "Dispatcher.hpp"
 #include "ProtocolFactory.hpp"
 #include "Session.hpp"
+#include "ILogger.hpp"
 #include <iostream>
 
 ClientService::ClientService(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service)
@@ -31,11 +32,11 @@ void ClientService::onConnect(const boost::system::error_code& err)
 {
     if (err)
     {
-        std::cout << "Error to connect: " << err.message() << std::endl;
+        NETWORK_LOG_ERROR("Error when trying to connect: " << err.message());
         return;
     }
 
-    std::cout << "Connected succesfully" << std::endl;
+    NETWORK_LOG_INFO("Connected successfully");
     session->accept(service->createProtocol(dispatcher, scheduler, session));
     session->read();
 }

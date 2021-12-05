@@ -1,6 +1,7 @@
 #include "Service.hpp"
 #include "Session.hpp"
 #include <iostream>
+#include "ILogger.hpp"
 
 Services::Services(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler)
     : dispatcher{std::move(dispatcher)}
@@ -53,9 +54,10 @@ void TcpService::accept()
 
 void TcpService::onAccept(std::shared_ptr<Session> session, const boost::system::error_code& error)
 {
-    std::cout << "Accepted a new connection" << std::endl;
     if (!error)
     {
+        NETWORK_LOG_INFO("Accepted a new connection");
+
         auto protocol = this->service->createProtocol(dispatcher, scheduler, session);
         protocol->start();
         session->accept(std::move(protocol));

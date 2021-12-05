@@ -1,4 +1,5 @@
 #include "Dispatcher.hpp"
+#include "ILogger.hpp"
 
 Dispatcher::Dispatcher()
 {
@@ -7,6 +8,7 @@ Dispatcher::Dispatcher()
 
 Dispatcher::~Dispatcher()
 {
+    NETWORK_LOG_DEBUG("Dispatcher::~Dispatcher()");
     shutdown();
 }
 
@@ -47,6 +49,13 @@ void Dispatcher::addTask(std::unique_ptr<Task> task)
         {
             doSignal = taskList.empty();
             taskList.push_back(std::move(task));
+
+            auto oldMaximum = maximumTasks;
+            maximumTasks = std::max(maximumTasks, taskList.size());
+            if (oldMaximum != maximumTasks)
+            {
+                NETWORK_LOG_DEBUG("Maximum tasks in the dispatcher exceeded: " << maximumTasks);
+            }
         }
     }
 	if (doSignal)
@@ -57,6 +66,7 @@ void Dispatcher::addTask(std::unique_ptr<Task> task)
 
 void Dispatcher::shutdown()
 {
+    NETWORK_LOG_INFO("Shutting down the dispatcher");
 	auto task = createTask([this]() {
 		setState(ThreadRunnerState::THREAD_STATE_TERMINATED);
 		taskSignal.notify_one();

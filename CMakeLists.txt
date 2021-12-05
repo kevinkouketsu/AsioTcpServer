@@ -14,8 +14,7 @@ elseif (UNIX)
     set(EXTRA_LIBRARIES_PER_PLATFORM ${EXTRA_LIBRARIES_PER_PLATFORM} -lpthread)
 endif()
 
-add_library(
-    emulator_network
+set(SOURCE_FILES
     src/Client.cpp
     src/Dispatcher.cpp
     src/Scheduler.cpp
@@ -23,5 +22,18 @@ add_library(
     src/Service.cpp
     src/Session.cpp
 )
+
+set (MAIN_SOURCE "")
+if (NOT RUN_SERVER)
+    add_library(
+        emulator_network
+        ${SOURCE_FILES}
+    )
+else()
+    add_executable(
+        emulator_network
+        ${SOURCE_FILES}
+    )
+endif()
 
 target_link_libraries(emulator_network ${CONAN_LIBS} ${EXTRA_LIBRARIES_PER_PLATFORM})
