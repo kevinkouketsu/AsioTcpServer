@@ -1,9 +1,10 @@
 #pragma once
 
 #include "Protocol.hpp"
-#include "ServiceBase.hpp"
-#include "ThreadRunner.hpp"
 #include "ProtocolFactory.hpp"
+#include "ServiceBase.hpp"
+#include "SessionFactory.hpp"
+#include "ThreadRunner.hpp"
 #include <boost/asio.hpp>
 #include <string>
 #include <type_traits>
@@ -17,6 +18,7 @@ class Services : public std::enable_shared_from_this<Services>
 {
 public:
     Services(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler);
+    Services(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<SessionFactory> sessionFactory);
 
     template<typename ServiceType>
     void add(int16_t port, std::string ipAddress)
@@ -43,6 +45,7 @@ public:
 private:
     std::shared_ptr<Dispatcher> dispatcher;
     std::shared_ptr<Scheduler> scheduler;
+    std::shared_ptr<SessionFactory> sessionFactory;
     boost::asio::io_service ioService;
     std::unordered_map<int16_t, std::shared_ptr<TcpService>> services;
 };
@@ -50,7 +53,7 @@ private:
 class TcpService : public std::enable_shared_from_this<TcpService>, public ServiceBase<TcpService>
 {
 public:
-    TcpService(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service);
+    TcpService(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> protocolFacotry);
     void open(std::string ipAddress, int16_t port);
 
 private:
@@ -59,7 +62,8 @@ private:
 
     boost::asio::io_service& ioService;
     std::unique_ptr<boost::asio::ip::tcp::acceptor> acceptor;
-    std::shared_ptr<ProtocolFactoryBase> service;
+    std::shared_ptr<ProtocolFactoryBase> protocolFacotry;
+    std::shared_ptr<SessionFactory> sessionFactory;
     std::shared_ptr<Dispatcher> dispatcher;
     std::shared_ptr<Scheduler> scheduler;
 };

@@ -3,16 +3,32 @@
 #include <iostream>
 #include "ILogger.hpp"
 
+class DefaultSessionFactory : public SessionFactory
+{
+public:
+    std::shared_ptr<Session> create(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService)
+    {
+        return std::make_shared<Session>(dispatcher, ioService);
+    }
+};
+
 Services::Services(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler)
-    : dispatcher{std::move(dispatcher)}
+    : Services(dispatcher, scheduler, std::make_shared<DefaultSessionFactory>())
 {
 }
 
-TcpService::TcpService(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> service)
+Services::Services(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<SessionFactory> sessionFactory)
+    : dispatcher{std::move(dispatcher)}
+    , scheduler{std::move(scheduler)}
+    , sessionFactory{std::move(sessionFactory)}
+{
+}
+
+TcpService::TcpService(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, boost::asio::io_service& ioService, std::shared_ptr<ProtocolFactoryBase> protocolFacotry)
     : ioService{ioService}
     , dispatcher{std::move(dispatcher)}
     , scheduler{std::move(scheduler)}
-    , service{std::move(service)}
+    , protocolFacotry{std::move(protocolFacotry)}
 {
 }
 
@@ -40,7 +56,7 @@ void TcpService::open(std::string ipAddress, int16_t port)
 
 void TcpService::accept()
 {
-    auto connection = std::make_shared<Session>(dispatcher, ioService);
+    auto connection = this->sessionFactory->create(dispatcher, ioService);
 	acceptor->async_accept(
         connection->getSocket(),
         std::bind(
@@ -58,9 +74,7 @@ void TcpService::onAccept(std::shared_ptr<Session> session, const boost::system:
     {
         NETWORK_LOG_INFO("Accepted a new connection");
 
-        auto protocol = this->service->createProtocol(dispatcher, scheduler, session);
-        protocol->start();
-        session->accept(std::move(protocol));
+        session->accept(this->protocolFacotry->createProtocol(dispatcher, scheduler, session));
         session->read();
 
         // recursively await a new connection
