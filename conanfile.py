@@ -14,20 +14,10 @@ class EmulatorNetworkConan(ConanFile):
     generators = "cmake"
     exports_sources = ["src/**", "CMakeLists.txt"]
     def requirements(self):
-        self.requires("boost/1.77.0")
+        self.requires("boost/1.78.0")
 
     def configure(self):
-        self.options["boost"].zlib = False
-        self.options["boost"].bzip2 = False
-        self.options["boost"].lzma = False
-        self.options["boost"].zstd = False
-        self.options["boost"].without_graph = True
-        self.options["boost"].without_iostreams = True
-        self.options["boost"].without_log = True
-        self.options["boost"].without_locale = True
-        self.options["boost"].without_math = True
-        self.options["boost"].without_random = True
-        self.options["boost"].without_stacktrace = True
+        pass
 
     def build(self):
         cmake = CMake(self)

@@ -1,5 +1,6 @@
 #include "Dispatcher.hpp"
 #include "ILogger.hpp"
+#include <algorithm>
 
 Dispatcher::Dispatcher()
 {
