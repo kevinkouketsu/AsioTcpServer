@@ -9,6 +9,7 @@
 #include "Client.hpp"
 #include "BufferWriter.hpp"
 #include "Session.hpp"
+#include "ILogger.hpp"
 
 static uint8_t KeyTable[] =
 {
@@ -136,12 +137,49 @@ void PacketEncrypt(uint8_t* pBuffer, const uint8_t* data, uint32_t packetSize)
 	pHeader->CheckSum = ((checkSum[1] & 255) - (checkSum[0] & 255)) & 255;
 }
 
+class CustomSession : public Session
+{
+public:
+    CustomSession(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, int a)
+        : Session(dispatcher, ioService)
+    {}
+
+};
+
+
+class CustomSessionFactory : public SessionFactory<CustomSession>
+{
+public:
+    std::shared_ptr<CustomSession> create(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService) override
+    {
+        return std::make_shared<CustomSession>(dispatcher, ioService, 1);
+    }
+};
+
+class Logger : public network::ILogger
+{
+public:
+    virtual ~Logger() = default;
+    void debug(const std::string& fileName, uint32_t line, const std::string& method, const std::string& message)
+    {
+        std::cout << "[DEBUG][" << fileName << "][" << line << "][" << method << "][" << message << "]" << std::endl;
+    }
+    void error(const std::string& fileName, uint32_t line, const std::string& method, const std::string& message)
+    {
+        std::cout << "[ERROR][" << fileName << "][" << line << "][" << method << "][" << message << "]" << std::endl;
+    }
+    void info(const std::string& fileName, uint32_t line, const std::string& method, const std::string& message)
+    {
+        std::cout << "[INFO][" << fileName << "][" << line << "][" << method << "][" << message << "]" << std::endl;
+    }
+};
+
 int main(int argc, char* argv[])
 {
     class ProtocolTest : public Protocol
     {
     public:
-        ProtocolTest(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<Session> session)
+        ProtocolTest(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<CustomSession> session)
             : session{std::move(session)}
         {
         }
@@ -180,13 +218,13 @@ int main(int argc, char* argv[])
             std::cout << "trying to send a new message" << std::endl;
         }
 
-        std::shared_ptr<Session> session;
+        std::shared_ptr<CustomSession> session;
     };
 
     class ProtocolClient : public Protocol
     {
     public:
-        ProtocolClient(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<Session> session)
+        ProtocolClient(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<CustomSession> session)
         {
         }
         void start() override
@@ -214,6 +252,7 @@ int main(int argc, char* argv[])
     };
     try
     {
+        network::ILogger::setLogger(std::make_shared<Logger>());
         auto dispatcher = std::make_shared<Dispatcher>();
         auto scheduler = std::make_shared<Scheduler>(dispatcher);
         dispatcher->addTask(createTask([](){
@@ -225,10 +264,12 @@ int main(int argc, char* argv[])
         {
             std::cout << "Calling the scheduled task..." << std::endl;
         }));
-        auto services = std::make_shared<Services>(dispatcher, scheduler);
+
+        auto sessionFactory = std::make_shared<CustomSessionFactory>();
+        auto services = std::make_shared<Services<CustomSession>>(dispatcher, scheduler, sessionFactory);
         services->add<ProtocolTest>(8174, "");
 
-        auto client = std::make_shared<ClientService>(dispatcher, scheduler, services->getIoService(), std::make_shared<ProtocolFactory<ProtocolClient>>());
+        auto client = std::make_shared<ClientService<CustomSession>>(dispatcher, scheduler, services->getIoService(), std::make_shared<ProtocolFactory<ProtocolClient, CustomSession>>(), sessionFactory);
         std::string ipAddress = std::string{"127.0.0.1"};
         client->open(ipAddress, 8174);
 

@@ -14,11 +14,6 @@ Session::Session(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service
     , dispatcher{std::move(dispatcher)}
 {}
 
-boost::asio::ip::tcp::socket& Session::getSocket()
-{
-    return socket;
-}
-
 uint32_t Session::getIpAddress() const
 {
     boost::asio::ip::tcp::endpoint endpoint;
@@ -48,7 +43,7 @@ void Session::setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chron
     if (timeout.count() != 0)
     {
         steadyTimer.expires_from_now(timeout);
-        steadyTimer.async_wait(std::bind(&Session::handleTimeout, shared_from_this(), std::placeholders::_1));
+        steadyTimer.async_wait(std::bind(&Session::handleTimeout, this->shared_from_this(), std::placeholders::_1));
     }
 }
 
@@ -64,7 +59,7 @@ void Session::read()
             boost::asio::async_read(
                 socket,
                 boost::asio::buffer(msg.getBuffer(), NetworkMessage::SIZE_LENGTH),
-                std::bind(&Session::parseHeader, shared_from_this(), std::placeholders::_1));
+                std::bind(&Session::parseHeader, this->shared_from_this(), std::placeholders::_1));
         }
         catch (const boost::system::system_error& error)
         {
@@ -76,7 +71,7 @@ void Session::read()
         boost::asio::async_read(
             socket,
             boost::asio::buffer(msg.getBuffer(), 4),
-            std::bind(&Session::parseHelloPacket, shared_from_this(), std::placeholders::_1));
+            std::bind(&Session::parseHelloPacket, this->shared_from_this(), std::placeholders::_1));
     }
 }
 
@@ -135,7 +130,7 @@ void Session::parseHeader(const boost::system::error_code& error)
     msg.setLength(size + NetworkMessage::SIZE_LENGTH);
     boost::asio::async_read(
         socket, boost::asio::buffer(msg.getBodyBuffer(), size),
-        std::bind(&Session::parsePacket, shared_from_this(), std::placeholders::_1));
+        std::bind(&Session::parsePacket, this->shared_from_this(), std::placeholders::_1));
 }
 
 void Session::parsePacket(const boost::system::error_code& error)
@@ -192,7 +187,7 @@ void Session::internalSend(const std::shared_ptr<BufferWriter>& message)
             ),
             std::bind(
                 &Session::onWriteOperation,
-                shared_from_this(),
+                this->shared_from_this(),
                 std::placeholders::_1
             )
         );

@@ -2,12 +2,27 @@
 
 #include "Dispatcher.hpp"
 #include "NetworkMessage.hpp"
+#include "SessionFactory.hpp"
 #include <boost/asio.hpp>
 #include <list>
 
 class Dispatcher;
 class Protocol;
 class BufferWriter;
+class Session;
+
+namespace {
+
+    class DefaultSessionFactory : public SessionFactory<Session>
+    {
+    public:
+        std::shared_ptr<Session> create(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService)
+        {
+            return std::make_shared<Session>(dispatcher, ioService);
+        }
+    };
+
+}
 
 class Session : public std::enable_shared_from_this<Session>
 {
@@ -17,7 +32,11 @@ public:
     // The SessionHandler lifetime must be the same as the Session
     Session(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService);
 
-    boost::asio::ip::tcp::socket& getSocket();
+    boost::asio::ip::tcp::socket& getSocket()
+    {
+        return this->socket;
+    }
+
     uint32_t getIpAddress() const;
 
     void accept(std::shared_ptr<Protocol> protocol);

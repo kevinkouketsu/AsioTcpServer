@@ -4,11 +4,11 @@
 
 class Dispatcher;
 class Protocol;
-class Session;
 
+template<typename T>
 class SessionFactory
 {
 public:
     virtual ~SessionFactory() = default;
-    virtual std::shared_ptr<Session> create(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService) = 0;
+    virtual std::shared_ptr<T> create(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService) = 0;
 };

@@ -18,7 +18,6 @@ set(SOURCE_FILES
     src/Client.cpp
     src/Dispatcher.cpp
     src/Scheduler.cpp
-    src/Server.cpp
     src/Service.cpp
     src/Session.cpp
 )
@@ -32,6 +31,7 @@ if (NOT RUN_SERVER)
 else()
     add_executable(
         emulator_network
+        src/Server.cpp
         ${SOURCE_FILES}
     )
 endif()
