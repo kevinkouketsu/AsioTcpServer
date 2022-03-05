@@ -45,6 +45,7 @@ public:
 
     void close(bool force = false);
     void setTimeout(std::chrono::microseconds timeoutInMicroseconds);
+    void setSessionIsReady(bool status);
 
 private:
     void parseHeader(const boost::system::error_code& error);

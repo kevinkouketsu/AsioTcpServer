@@ -228,3 +228,8 @@ void Session::setTimeout(std::chrono::microseconds timeoutInMicroseconds)
 {
     this->timeoutInMicroseconds = timeoutInMicroseconds;
 }
+
+void Session::setSessionIsReady(bool status)
+{
+    this->sessionIsReady = status;
+}
