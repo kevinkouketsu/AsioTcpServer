@@ -143,7 +143,8 @@ void Session::parsePacket(const boost::system::error_code& error)
         return;
     }
 
-    addTask(&Protocol::onRecvMessage, msg);
+    std::vector<uint8_t> data { msg.getBuffer(), msg.getBuffer() + msg.getLengthHeader() };
+    addTask(&Protocol::onRecvMessage, data);
     read();
 }
 

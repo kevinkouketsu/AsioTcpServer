@@ -2,7 +2,7 @@
 
 #include <vector>
 
-template<typename Container = std::vector>
+template<typename Container = std::vector<unsigned char>>
 class BufferReader
 {
 private:

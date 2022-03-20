@@ -20,7 +20,10 @@ class NetworkMessage
 		static constexpr auto MAX_BODY_LENGTH = NETWORKMESSAGE_MAXSIZE - HEADER_LENGTH;
 
 		NetworkMessage() = default;
-
+		NetworkMessage(uint8_t* data, int32_t size)
+		{
+			memcpy(&buffer, data, size);
+		}
 		void reset()
         {
 			info = {};

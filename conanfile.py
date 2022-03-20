@@ -2,7 +2,7 @@ from conans import ConanFile, CMake, tools
 
 class EmulatorNetworkConan(ConanFile):
     name = "emulator_network"
-    version = "0.4.1"
+    version = "1.0.0"
     license = "<Put the package license here>"
     author = "<Put your name here> <And your email here>"
     url = "<Package recipe repository url here, for issues about the package>"
