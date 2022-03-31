@@ -55,7 +55,7 @@ public:
 	}
 
 	template<typename T = std::string>
-	void set(const char* value, uint32_t size)
+	void set(const char* value, size_t size)
 	{
 		set<uint32_t>(size);
 
