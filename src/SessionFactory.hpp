@@ -2,13 +2,10 @@
 
 #include <boost/asio/io_service.hpp>
 
-class Dispatcher;
-class Protocol;
-
-template<typename T>
+template<typename SessionType>
 class SessionFactory
 {
 public:
     virtual ~SessionFactory() = default;
-    virtual std::shared_ptr<T> create(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService) = 0;
+    virtual std::shared_ptr<SessionType> create(boost::asio::io_service& ioService) = 0;
 };

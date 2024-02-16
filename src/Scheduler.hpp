@@ -28,7 +28,6 @@ public:
 private:
     std::chrono::nanoseconds delay;
     uint32_t eventId{ 0 };
-
 };
 
 class Scheduler : public ThreadRunner<Scheduler>, public std::enable_shared_from_this<Scheduler>
@@ -40,12 +39,12 @@ public:
     void stopEvent(uint32_t eventId);
 
     void shutdown();
-    void threadMain() { io_context.run(); }
+    void threadMain() { ioContext.run(); }
 
 private:
     std::atomic<uint32_t> lastEventId{0};
     std::unordered_map<uint32_t, boost::asio::steady_timer> eventIdTimerMap;
-    boost::asio::io_context io_context;
-    boost::asio::io_context::work work{ io_context };
+    boost::asio::io_context ioContext;
+    boost::asio::io_context::work work{ ioContext };
     std::shared_ptr<Dispatcher> dispatcher;
 };

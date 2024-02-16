@@ -4,7 +4,7 @@
 #include "ILogger.hpp"
 
 Scheduler::Scheduler(std::shared_ptr<Dispatcher> dispatcher)
-    : dispatcher{std::move(dispatcher)}
+	: dispatcher{ std::move(dispatcher) }
 {
 	start();
 }
@@ -18,8 +18,8 @@ uint32_t Scheduler::addEvent(std::unique_ptr<SchedulerTask> task)
 		eventId = task->getEventId();
 	}
 
-	boost::asio::post(io_context, [self=shared_from_this(), task=std::move(task)]() mutable {
-		auto it = self->eventIdTimerMap.emplace(task->getEventId(), boost::asio::steady_timer{self->io_context});
+	boost::asio::post(ioContext, [self=shared_from_this(), task=std::move(task)]() mutable {
+		auto it = self->eventIdTimerMap.emplace(task->getEventId(), boost::asio::steady_timer{self->ioContext});
 		auto& timer = it.first->second;
 
 		timer.expires_from_now(task->getDelay());
@@ -47,7 +47,7 @@ void Scheduler::stopEvent(uint32_t eventId)
 	}
 
     NETWORK_LOG_DEBUG("Stopping eventId " << eventId);
-	boost::asio::post(io_context, [self=shared_from_this(), eventId]()
+	boost::asio::post(ioContext, [self=shared_from_this(), eventId]()
     {
 		auto it = self->eventIdTimerMap.find(eventId);
 		if (it != self->eventIdTimerMap.end())
@@ -61,13 +61,13 @@ void Scheduler::shutdown()
 {
     NETWORK_LOG_DEBUG("Shutting down the Scheduler");
 	setState(ThreadRunnerState::THREAD_STATE_TERMINATED);
-	boost::asio::post(io_context, [this]() {
+	boost::asio::post(ioContext, [this]() {
 		for (auto& it : eventIdTimerMap)
         {
 			it.second.cancel();
 		}
 
-		io_context.stop();
+		ioContext.stop();
 	});
 }
 

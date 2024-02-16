@@ -6,7 +6,6 @@
 #include "Service.hpp"
 #include "Protocol.hpp"
 #include "NetworkMessage.hpp"
-#include "Client.hpp"
 #include "BufferWriter.hpp"
 #include "Session.hpp"
 #include "ILogger.hpp"
@@ -140,19 +139,54 @@ void PacketEncrypt(uint8_t* pBuffer, const uint8_t* data, uint32_t packetSize)
 class CustomSession : public Session
 {
 public:
-    CustomSession(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService, int a)
-        : Session(dispatcher, ioService)
-    {}
+    CustomSession(boost::asio::io_service& ioService)
+        : Session(ioService)
+    {
+    }
 
+    void onReceiveMessage(const NetworkMessage& data) override
+    {
+        NetworkMessage message{ data };
+        decryptMessage(message.getBuffer(), message.getLengthHeader());
+        message += 2;
+
+        std::cout << "PacketId " << std::hex << message.get<uint16_t>() << std::endl;
+
+        message += 6;
+
+        auto currentVersion = message.get<uint32_t>();
+        if (currentVersion == 10)
+        {
+            return;
+        }
+
+        BufferWriter writer{ 140 };
+        writer.set<uint16_t>(140);
+        writer.set<uint16_t>(0);
+        writer.set<uint16_t>(0x101);
+        writer += 6;
+
+        writer.set(currentVersion + 1);
+
+        writer << 'A' << 'B' << 'C' << '\0';
+
+        send(std::make_shared<BufferWriter>(writer));
+    }
+
+    void onSendMessage(std::shared_ptr<BufferWriter>& message) override
+    {
+        PacketEncrypt(message->getBuffer().data(), message->getBuffer().data(), message->getSize());
+        std::cout << "trying to send a new message" << std::endl;
+    }
 };
 
 
 class CustomSessionFactory : public SessionFactory<CustomSession>
 {
 public:
-    std::shared_ptr<CustomSession> create(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService) override
+    std::shared_ptr<CustomSession> create(boost::asio::io_service& ioService) override
     {
-        return std::make_shared<CustomSession>(dispatcher, ioService, 1);
+        return std::make_shared<CustomSession>(ioService);
     }
 };
 
@@ -174,82 +208,31 @@ public:
     }
 };
 
+class ProtocolTest : public Protocol<CustomSession>
+{
+public:
+    ProtocolTest(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler)
+    {
+    }
+    void start() override
+    {
+
+    }
+
+    void onAccept(std::shared_ptr<CustomSession> session) override
+    {
+        std::cout << "onAccept=" << a << std::endl;
+        a++;
+    }
+    void onClose(std::shared_ptr<CustomSession> session) override
+    {
+        std::cout << "onClose=" << this << std::endl;
+    }
+    int a = 0;
+};
+
 int main(int argc, char* argv[])
 {
-    class ProtocolTest : public Protocol
-    {
-    public:
-        ProtocolTest(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<CustomSession> session)
-            : session{std::move(session)}
-        {
-        }
-        void start() override
-        {
-
-        }
-        void onAccept() override
-        {
-            std::cout << "onAccept=" << this << std::endl;
-        }
-        void onClose() override
-        {
-            std::cout << "onClose=" << this << std::endl;
-        }
-        void onRecvMessage(NetworkMessage& msg) override
-        {
-            decryptMessage(msg.getBuffer(), msg.getLengthHeader());
-            msg += 2;
-
-            std::cout << "PacketId " << std::hex << msg.get<uint16_t>() << std::endl;
-
-            BufferWriter writer{ 140 };
-            writer.set<uint16_t>(140);
-            writer.set<uint16_t>(0);
-            writer.set<uint16_t>(0x101);
-            writer += 6;
-
-            writer << 'A' << 'B' << 'C' << '\0';
-            session->send(std::make_shared<BufferWriter>(writer));
-        }
-        void onSendMessage(const std::shared_ptr<BufferWriter>& message)
-        {
-            auto oldData = message->getBuffer();
-            PacketEncrypt(message->getBuffer().data(), oldData.data(), message->getSize());
-            std::cout << "trying to send a new message" << std::endl;
-        }
-
-        std::shared_ptr<CustomSession> session;
-    };
-
-    class ProtocolClient : public Protocol
-    {
-    public:
-        ProtocolClient(std::shared_ptr<Dispatcher> dispatcher, std::shared_ptr<Scheduler> scheduler, std::shared_ptr<CustomSession> session)
-        {
-        }
-        void start() override
-        {
-
-        }
-        void onAccept() override
-        {
-            std::cout << "onConnected into the client=" << this << std::endl;
-        }
-        void onClose() override
-        {
-            std::cout << "Client closed=" << this << std::endl;
-        }
-        void onRecvMessage(NetworkMessage& msg) override
-        {
-            decryptMessage(msg.getBuffer(), msg.getLengthHeader());
-            msg += 2;
-
-            std::cout << "PacketId " << std::hex << msg.get<uint16_t>() << std::endl;
-        }
-        void onSendMessage(const std::shared_ptr<BufferWriter>& message)
-        {
-        }
-    };
     try
     {
         network::ILogger::setLogger(std::make_shared<Logger>());
@@ -266,14 +249,28 @@ int main(int argc, char* argv[])
         }));
 
         auto sessionFactory = std::make_shared<CustomSessionFactory>();
-        auto services = std::make_shared<Services<CustomSession>>(dispatcher, scheduler, sessionFactory);
-        services->add<ProtocolTest>(8174, "");
+        auto services = std::make_shared<Services<CustomSession>>(sessionFactory);
+        services->add<ProtocolTest>(std::make_shared<ProtocolTest>(dispatcher, scheduler), 8174, "");
 
-        auto client = std::make_shared<ClientService<CustomSession>>(dispatcher, scheduler, services->getIoService(), std::make_shared<ProtocolFactory<ProtocolClient, CustomSession>>(), sessionFactory);
-        std::string ipAddress = std::string{"127.0.0.1"};
-        client->open(ipAddress, 8174);
 
-        services->run();
+        std::thread([=]() {
+            services->run();
+        }).detach();
+
+        for (int i = 0; i < 1000; ++i)
+        {
+            auto session = std::make_shared<CustomSession>(services->getIoService());
+            try {
+                session->connect(std::string { "127.0.0.1" }, 8174);
+            }
+            catch (const std::exception& e)
+            {
+                std::cout << e.what();
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(15));
+
+        dispatcher->shutdown();
         dispatcher->join();
         scheduler->shutdown();
         scheduler->join();

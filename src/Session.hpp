@@ -7,22 +7,28 @@
 #include <list>
 
 class Dispatcher;
-class Protocol;
 class BufferWriter;
 class Session;
 
 namespace {
 
-    class DefaultSessionFactory : public SessionFactory<Session>
+    template<typename SessionType>
+    class DefaultSessionFactory : public SessionFactory<SessionType>
     {
     public:
-        std::shared_ptr<Session> create(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService)
+        std::shared_ptr<SessionType> create(boost::asio::io_service& ioService)
         {
-            return std::make_shared<Session>(dispatcher, ioService);
+            return std::make_shared<SessionType>(ioService);
         }
     };
 
 }
+
+enum class Transport
+{
+    // The two first bytes represents the size of message
+    FramedTcp,
+};
 
 class Session : public std::enable_shared_from_this<Session>
 {
@@ -30,7 +36,24 @@ public:
     static constexpr bool ForceClose = true;
 
     // The SessionHandler lifetime must be the same as the Session
-    Session(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService);
+    Session(boost::asio::io_service& ioService);
+    Session(boost::asio::io_service& ioService, Transport transport);
+
+    void connect(std::string& ipAddress, uint16_t port)
+    {
+        socket.connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address(boost::asio::ip::address_v4::from_string(ipAddress)), port));
+        read();
+    }
+
+    virtual void onReceiveMessage(const NetworkMessage& message)
+    {
+
+    }
+
+    virtual void onSendMessage(std::shared_ptr<BufferWriter>& message)
+    {
+
+    }
 
     boost::asio::ip::tcp::socket& getSocket()
     {
@@ -39,13 +62,11 @@ public:
 
     uint32_t getIpAddress() const;
 
-    void accept(std::shared_ptr<Protocol> protocol);
     void read();
-    void send(const std::shared_ptr<BufferWriter>& message);
+    void send(std::shared_ptr<BufferWriter> message);
 
     void close(bool force = false);
     void setTimeout(std::chrono::microseconds timeoutInMicroseconds);
-    void setSessionIsReady(bool status);
 
 private:
     void parseHeader(const boost::system::error_code& error);
@@ -53,15 +74,14 @@ private:
     void closeSocket();
     void handleTimeout(const boost::system::error_code& error);
     void setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chrono::microseconds timeout);
-    void parseHelloPacket(const boost::system::error_code& error);
-    void internalSend(const std::shared_ptr<BufferWriter>& message);
+    void internalSend(std::shared_ptr<BufferWriter> message);
     void onWriteOperation(const boost::system::error_code& error);
 
-    template<typename T, typename... Args>
-    void addTask(T method, Args... args)
+    void setTransport(Transport transport)
     {
-        dispatcher->addTask(createTask(std::bind(method, this->protocol, std::forward<Args>(args)...)));
+        this->transport = transport;
     }
+
 private:
     mutable std::recursive_mutex mutex;
 
@@ -75,11 +95,10 @@ private:
     boost::asio::io_service& ioService;
     std::chrono::steady_clock::time_point sessionStartTime;
     std::shared_ptr<Dispatcher> dispatcher;
-    std::shared_ptr<Protocol> protocol;
     std::chrono::microseconds timeoutInMicroseconds;
 
     std::list<std::shared_ptr<BufferWriter>> pendingMessagesQueue;
 
+    Transport transport;
     size_t maximumPendingMessages { 0 };
-    bool sessionIsReady { false };
 };

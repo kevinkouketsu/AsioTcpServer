@@ -15,23 +15,31 @@ elseif (UNIX)
 endif()
 
 set(SOURCE_FILES
-    src/Client.cpp
     src/Dispatcher.cpp
     src/Scheduler.cpp
     src/Service.cpp
     src/Session.cpp
 )
 
+set(HEADER_FILES "")
+
+file(GLOB_RECURSE HEADER_FILES
+    src/*.hpp
+    src/*.h
+)
+
 set (MAIN_SOURCE "")
 if (NOT RUN_SERVER)
     add_library(
         emulator_network
+        ${HEADER_FILES}
         ${SOURCE_FILES}
     )
 else()
     add_executable(
         emulator_network
         src/Server.cpp
+        ${HEADER_FILES}
         ${SOURCE_FILES}
     )
 endif()

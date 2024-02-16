@@ -6,12 +6,17 @@
 
 using namespace std::chrono_literals;
 
-Session::Session(std::shared_ptr<Dispatcher> dispatcher, boost::asio::io_service& ioService)
+Session::Session(boost::asio::io_service& ioService)
+    : Session { ioService, Transport::FramedTcp }
+{}
+
+Session::Session(boost::asio::io_service& ioService, Transport transport)
     : ioService{ioService}
     , socket{ioService}
     , readTimer{ioService}
     , sessionStartTime{std::chrono::steady_clock::now()}
-    , dispatcher{std::move(dispatcher)}
+    , transport{transport}
+    , timeoutInMicroseconds{std::chrono::seconds::zero()}
 {}
 
 uint32_t Session::getIpAddress() const
@@ -40,7 +45,7 @@ void Session::handleTimeout(const boost::system::error_code& error)
 
 void Session::setTimerTimeout(boost::asio::steady_timer& steadyTimer, std::chrono::microseconds timeout)
 {
-    if (timeout.count() != 0)
+    if (timeout != std::chrono::microseconds::zero())
     {
         steadyTimer.expires_from_now(timeout);
         steadyTimer.async_wait(std::bind(&Session::handleTimeout, this->shared_from_this(), std::placeholders::_1));
@@ -52,13 +57,13 @@ void Session::read()
     std::lock_guard<std::recursive_mutex> lockGuard { mutex };
 
     setTimerTimeout(readTimer, timeoutInMicroseconds);
-    if (sessionIsReady)
+    if (transport == Transport::FramedTcp)
     {
         try
         {
             boost::asio::async_read(
                 socket,
-                boost::asio::buffer(msg.getBuffer(), NetworkMessage::SIZE_LENGTH),
+                boost::asio::buffer(msg.getBuffer(), NetworkMessage::SIZE_LENGTH), 
                 std::bind(&Session::parseHeader, this->shared_from_this(), std::placeholders::_1));
         }
         catch (const boost::system::system_error& error)
@@ -68,10 +73,7 @@ void Session::read()
     }
     else
     {
-        boost::asio::async_read(
-            socket,
-            boost::asio::buffer(msg.getBuffer(), 4),
-            std::bind(&Session::parseHelloPacket, this->shared_from_this(), std::placeholders::_1));
+        throw std::runtime_error{"Not implemented"};
     }
 }
 
@@ -82,7 +84,6 @@ void Session::closeSocket()
         boost::system::error_code error;
         socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
         socket.close(error);
-        dispatcher->addTask(createTask(std::bind(&Protocol::onClose, this->protocol)));
     }
 }
 
@@ -99,23 +100,6 @@ void Session::close(bool forceClose)
 	}
 }
 
-
-void Session::parseHelloPacket(const boost::system::error_code& error)
-{
-    if (error)
-    {
-        NETWORK_LOG_ERROR("Error when parsing the hello packet. Error: " << error.message());
-        close(ForceClose);
-        return;
-    }
-
-    msg.setBufferPosition(0);
-    if (msg.get<uint32_t>() == 0x1F11F311)
-    {
-        sessionIsReady = true;
-        read();
-    }
-}
 
 void Session::parseHeader(const boost::system::error_code& error)
 {
@@ -143,19 +127,11 @@ void Session::parsePacket(const boost::system::error_code& error)
         return;
     }
 
-    std::vector<uint8_t> data { msg.getBuffer(), msg.getBuffer() + msg.getLengthHeader() };
-    addTask(&Protocol::onRecvMessage, data);
+    onReceiveMessage(msg);
     read();
 }
 
-void Session::accept(std::shared_ptr<Protocol> protocol)
-{
-    this->protocol = std::move(protocol);
-
-    addTask(&Protocol::onAccept);
-}
-
-void Session::send(const std::shared_ptr<BufferWriter>& message)
+void Session::send(std::shared_ptr<BufferWriter> message)
 {
     bool isSleeping { false };
     {
@@ -176,9 +152,9 @@ void Session::send(const std::shared_ptr<BufferWriter>& message)
     }
 }
 
-void Session::internalSend(const std::shared_ptr<BufferWriter>& message)
+void Session::internalSend(std::shared_ptr<BufferWriter> message)
 {
-	protocol->onSendMessage(message);
+	this->onSendMessage(message);
 	try {
 		boost::asio::async_write(
             socket,
@@ -224,13 +200,7 @@ void Session::onWriteOperation(const boost::system::error_code& error)
 	}
 }
 
-
 void Session::setTimeout(std::chrono::microseconds timeoutInMicroseconds)
 {
     this->timeoutInMicroseconds = timeoutInMicroseconds;
-}
-
-void Session::setSessionIsReady(bool status)
-{
-    this->sessionIsReady = status;
 }
