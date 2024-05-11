@@ -54,18 +54,17 @@ public:
 			index += sizeof(T);
 	}
 
-	template<typename T = std::string>
-	void set(const char* value, size_t size)
-	{
-		set<uint32_t>(size);
+    void set(const std::string& input)
+    {
+        set<unsigned int>(data.size());
 
-		if (index + size > data.size())
-			data.resize(index + size);
+        if (index + input.size() > data.size())
+            data.resize(index + input.size());
 
-		std::memcpy((void*)&data[index], (void*)value, size);
+        memcpy_s(&data[index], data.size() - index, input.data(), input.size());
 
-		index += size;
-	}
+        index += input.size();
+    }
 
 	std::vector<unsigned char>& getBuffer()
 	{
