@@ -27,16 +27,23 @@ public:
 		return *this;
 	}
 
-	template<typename T>
-	BufferWriter& operator<<(const T& lhs)
-	{
-		this->set<T>(lhs);
+    BufferWriter& operator<<(const std::string& lhs)
+    {
+        this->set(lhs);
 
-		return *this;
-	}
+        return *this;
+    }
 
-	template<typename T>
-	void set(T value, size_t position = std::numeric_limits<size_t>::max())
+    template<typename T>
+    BufferWriter& operator<<(const T& lhs)
+    {
+        this->set<T>(lhs);
+
+        return *this;
+    }
+
+    template<typename T>
+    std::enable_if_t<!std::is_same_v<T, std::string>> set(T value, size_t position = std::numeric_limits<size_t>::max())
 	{
 		bool moveIndex{ false };
 		if (position == -1)
@@ -56,7 +63,7 @@ public:
 
     void set(const std::string& input)
     {
-        set<unsigned int>(data.size());
+        set<unsigned int>(input.size());
 
         if (index + input.size() > data.size())
             data.resize(index + input.size());
