@@ -11,6 +11,10 @@ class BufferWriter
 	std::vector<unsigned char> data;
 public:
     BufferWriter() = default;
+	BufferWriter(std::vector<unsigned char> data)
+		: data { std::move(data) }
+	{}
+
 	BufferWriter(size_t size)
 	{
 		data.resize(size);
