@@ -11,6 +11,10 @@ class BufferWriter
 	std::vector<unsigned char> data;
 public:
     BufferWriter() = default;
+	BufferWriter(std::vector<unsigned char> data)
+		: data { std::move(data) }
+	{}
+
 	BufferWriter(size_t size)
 	{
 		data.resize(size);
@@ -27,16 +31,23 @@ public:
 		return *this;
 	}
 
-	template<typename T>
-	BufferWriter& operator<<(const T& lhs)
-	{
-		this->set<T>(lhs);
+    BufferWriter& operator<<(const std::string& lhs)
+    {
+        this->set(lhs);
 
-		return *this;
-	}
+        return *this;
+    }
 
-	template<typename T>
-	void set(T value, size_t position = std::numeric_limits<size_t>::max())
+    template<typename T>
+    BufferWriter& operator<<(const T& lhs)
+    {
+        this->set<T>(lhs);
+
+        return *this;
+    }
+
+    template<typename T>
+    std::enable_if_t<!std::is_same_v<T, std::string>> set(T value, size_t position = std::numeric_limits<size_t>::max())
 	{
 		bool moveIndex{ false };
 		if (position == -1)
@@ -54,18 +65,17 @@ public:
 			index += sizeof(T);
 	}
 
-	template<typename T = std::string>
-	void set(const char* value, size_t size)
-	{
-		set<uint32_t>(size);
+    void set(const std::string& input)
+    {
+        set<unsigned int>(input.size());
 
-		if (index + size > data.size())
-			data.resize(index + size);
+        if (index + input.size() > data.size())
+            data.resize(index + input.size());
 
-		std::memcpy((void*)&data[index], (void*)value, size);
+        memcpy_s(&data[index], data.size() - index, input.data(), input.size());
 
-		index += size;
-	}
+        index += input.size();
+    }
 
 	std::vector<unsigned char>& getBuffer()
 	{

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <vector>
+#include <string>
+#include <sstream>
 
-template<typename Container = std::vector<unsigned char>>
 class BufferReader
 {
 private:
@@ -22,6 +22,14 @@ public:
 	{
 		index += size;
 	}
+
+    template<typename T>
+    BufferReader& operator>>(T& obj)
+    {
+        obj = this->Get<T>();
+
+        return *this;
+    }
 
 	template<typename T>
 	T Get()
@@ -52,6 +60,9 @@ public:
 
 			return str.str();
 		}
+
+        if (size == 0)
+            return {};
 
 		std::vector<unsigned char> temporaryData(size);
 
