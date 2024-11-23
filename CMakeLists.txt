@@ -5,7 +5,7 @@ include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 set(EXTRA_LIBRARIES_PER_PLATFORM "")
 if (MSVC)

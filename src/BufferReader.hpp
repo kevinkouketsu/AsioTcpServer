@@ -1,24 +1,24 @@
 #pragma once
 
+#include <vector>
 #include <string>
 #include <sstream>
 
 class BufferReader
 {
 private:
-    static constexpr auto HEADER_LENGTH = 12;
-
 	std::vector<unsigned char> data;
-	int index{ 0 };
+	size_t index{ 0 };
 
 public:
-	BufferReader(unsigned char* input, int size)
+    BufferReader() = default;
+	BufferReader(unsigned char* input, size_t size)
 	{
 		data.resize(size);
 		memcpy(data.data(), input, size);
 	}
 
-	void advance(unsigned int size)
+	void advance(size_t size)
 	{
 		index += size;
 	}
@@ -36,7 +36,7 @@ public:
 	{
 		T val = *(T*)&data[index];
 
-		index += sizeof T;
+		index += sizeof(T);
 		return val;
 	}
 
@@ -78,4 +78,29 @@ public:
 	{
 		return reinterpret_cast<T*>(data.data());
 	}
+
+    void setBufferSize(size_t size)
+    {
+        data.resize(size);
+    }
+
+    size_t getBufferSize() const
+    {
+        return data.size();
+    }
+
+    const std::vector<unsigned char>& getBuffer() const
+    {
+        return data;
+    }
+
+    const unsigned char* getRawBuffer() const
+    {
+        return data.data();
+    }
+
+    unsigned char* getRawBuffer()
+    {
+        return data.data();
+    }
 };

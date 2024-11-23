@@ -5,6 +5,9 @@
 #include <vector>
 #include <limits>
 
+template<typename T>
+concept StringLike = std::same_as<T, std::string> || std::same_as<T, const char*>;
+
 class BufferWriter
 {
 	size_t index{ 0 };
@@ -47,35 +50,34 @@ public:
     }
 
     template<typename T>
-    std::enable_if_t<!std::is_same_v<T, std::string>> set(T value, size_t position = std::numeric_limits<size_t>::max())
-	{
-		bool moveIndex{ false };
-		if (position == -1)
-		{
-			position = index;
-			moveIndex = true;
-		}
-
-		if (position + sizeof(T) > data.size())
-			data.resize(position + sizeof (T));
-
-        std::memcpy(&data[position], (void*)&value, sizeof(T));
-
-		if(moveIndex)
-			index += sizeof(T);
-	}
-
-    void set(const std::string& input)
+    void set(T value, size_t position = std::numeric_limits<size_t>::max()) 
+        requires (!StringLike<T>)
     {
-        set<unsigned int>(input.size());
+        bool moveIndex = false;
+        if (position == std::numeric_limits<size_t>::max()) {
+            position = index;
+            moveIndex = true;
+        }
 
-        if (index + input.size() > data.size())
-            data.resize(index + input.size());
+        ensureSize(sizeof(T));
 
-        memcpy_s(&data[index], data.size() - index, input.data(), input.size());
+        std::memcpy(&data[position], &value, sizeof(T));
 
-        index += input.size();
+        if (moveIndex) {
+            index += sizeof(T);
+        }
     }
+
+    template<StringLike T>
+    void set(T value) {
+        std::string_view strValue{ value };
+
+        set<unsigned int>(static_cast<unsigned int>(strValue.size()));
+
+        ensureSize(strValue.size());
+        index += strValue.size();
+    }
+
 
 	std::vector<unsigned char>& getBuffer()
 	{
@@ -92,4 +94,11 @@ public:
 	{
 		return reinterpret_cast<T*>(data.data());
 	}
+
+private:
+    void ensureSize(size_t size) 
+    {
+        if (index + size > data.size())
+            data.resize(index + size);
+    }
 };
