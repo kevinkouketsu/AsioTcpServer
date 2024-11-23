@@ -5,9 +5,9 @@
 #include <cstring>
 #include <type_traits>
 #include <sstream>
+#include "BufferReader.hpp"
 
 static constexpr int32_t NETWORKMESSAGE_MAXSIZE = 24590;
-
 
 class NetworkMessage
 {
@@ -20,71 +20,50 @@ public:
 	static constexpr auto MAX_BODY_LENGTH = NETWORKMESSAGE_MAXSIZE - HEADER_LENGTH;
 
 	NetworkMessage() = default;
-	NetworkMessage(uint8_t* data, int32_t size)
+	NetworkMessage(uint8_t* data, size_t size)
 	{
-		memcpy(&buffer, data, size);
+        buffer = BufferReader{ data, size };
 	}
-	void reset()
+	
+    void reset()
     {
-		info = {};
+        buffer = {};
 	}
+
 	template<typename T>
-	typename std::enable_if<!(std::is_same<T, std::string>::value), T>::type get()
+	T get()
 	{
-		if (!canRead(sizeof(T)))
-		{
-			return T{};
-		}
-
-		T v;
-		std::memcpy(&v, buffer + info.position, sizeof(T));
-		info.position += sizeof(T);
-		return v;
+        return buffer.Get<T>();
 	}
-	template<typename T>
-	typename std::enable_if<std::is_same<T, std::string>::value, T>::type get()
-	{
-		auto size = get<unsigned int>();
-		if (!canRead(size))
-		{
-			std::stringstream str;
-			str << "Invalid data. String size " << size << std::endl;
-			str << "Actual index " << info.position << std::endl;
-			str << "Data size: " << size << std::endl;
 
-			return str.str();
-		}
-
-		std::string val (reinterpret_cast<char*>(buffer) + info.position, size);
-		info.position += size;
-		return std::move(val);
-	}
 	MsgSize_t getLength() const
 	{
-		return info.length;
+		return buffer.getBufferSize();
 	}
 
 	void setLength(MsgSize_t newLength)
 	{
-		info.length = newLength;
+        if (newLength > buffer.getBufferSize())
+            buffer.setBufferSize(newLength);
 	}
-	NetworkMessage& operator+=(unsigned int value)
+
+	NetworkMessage& operator+=(size_t value)
 	{
-		info.position += value;
+        buffer.advance(value);
 
 		return *this;
 	}
 
 	MsgSize_t getBufferPosition() const
 	{
-		return info.position;
+		return position;
 	}
 
 	bool setBufferPosition(MsgSize_t pos)
 	{
 		if (pos < NETWORKMESSAGE_MAXSIZE - INITIAL_BUFFER_POSITION)
 		{
-			info.position = pos;
+			position = pos;
 			return true;
 		}
 		return false;
@@ -92,46 +71,39 @@ public:
 
 	uint16_t getLengthHeader() const
 	{
-		return static_cast<uint16_t>(buffer[0] | buffer[1] << 8);
+        auto rawBuffer = buffer.getRawBuffer();
+		return static_cast<uint16_t>(rawBuffer[0] | rawBuffer[1] << 8);
 	}
 
 	uint8_t* getBuffer()
 	{
-		return buffer;
+		return buffer.getRawBuffer();
 	}
 
 	const uint8_t* getBuffer() const
 	{
-		return buffer;
+		return buffer.getRawBuffer();
 	}
 
 	uint8_t* getBodyBuffer()
 	{
-		info.position = 2;
-		return buffer + 2;
+		position = 2;
+
+		return buffer.getRawBuffer() + SIZE_LENGTH;
 	}
 
 protected:
-	struct NetworkMessageInfo
-	{
-		MsgSize_t length = 0;
-		MsgSize_t position = INITIAL_BUFFER_POSITION;
-	};
-
-	NetworkMessageInfo info;
-
-	// TODO: must allocate minimum buffer and allocate overtime if needed
-	// The way is being done right now is terrible
-	uint8_t buffer[NETWORKMESSAGE_MAXSIZE];
+    MsgSize_t position = INITIAL_BUFFER_POSITION;
+    BufferReader buffer;
 
 private:
 	bool canAdd(size_t size) const
 	{
-		return (size + info.position) < MAX_BODY_LENGTH;
+		return (size + position) < MAX_BODY_LENGTH;
 	}
 
-	bool canRead(int32_t size)
+	bool canRead(int32_t size) const
 	{
-		return !((info.position + size) > (info.length + 8) || size >= (NETWORKMESSAGE_MAXSIZE - info.position));
+		return !((position + size) > (getLength() + 8) || size >= (NETWORKMESSAGE_MAXSIZE - position));
 	}
 };

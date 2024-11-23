@@ -61,6 +61,7 @@ void Session::read()
     {
         try
         {
+            msg.setLength(2);
             boost::asio::async_read(
                 socket,
                 boost::asio::buffer(msg.getBuffer(), NetworkMessage::SIZE_LENGTH), 
@@ -99,7 +100,6 @@ void Session::close(bool forceClose)
 		closeSocket();
 	}
 }
-
 
 void Session::parseHeader(const boost::system::error_code& error)
 {

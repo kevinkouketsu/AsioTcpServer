@@ -85,7 +85,6 @@ private:
 private:
     mutable std::recursive_mutex mutex;
 
-    // todo:  refactor
     NetworkMessage msg;
 
     bool closed { false };
