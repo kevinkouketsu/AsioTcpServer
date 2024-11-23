@@ -261,7 +261,7 @@ int main(int argc, char* argv[])
         {
             auto session = std::make_shared<CustomSession>(services->getIoService());
             try {
-                session->connect(std::string { "127.0.0.1" }, 8174);
+                session->connect("127.0.0.1", 8174);
             }
             catch (const std::exception& e)
             {

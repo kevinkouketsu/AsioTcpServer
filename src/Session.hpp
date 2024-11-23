@@ -39,7 +39,7 @@ public:
     Session(boost::asio::io_service& ioService);
     Session(boost::asio::io_service& ioService, Transport transport);
 
-    void connect(std::string& ipAddress, uint16_t port)
+    void connect(const std::string& ipAddress, uint16_t port)
     {
         socket.connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::address(boost::asio::ip::address_v4::from_string(ipAddress)), port));
         read();
